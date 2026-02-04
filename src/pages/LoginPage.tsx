@@ -7,7 +7,7 @@ const LoginPage = () => {
 
   const handleLogin = () => {
     // Mock login -> Redirect to dashboard
-    navigate('/dashboard');
+    navigate('/positions');
   };
 
   return (

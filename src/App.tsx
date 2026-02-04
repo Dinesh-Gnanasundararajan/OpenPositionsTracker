@@ -1,21 +1,24 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
-
-// Temporary Dashboard Placeholder
-const Dashboard = () => (
-  <div className="p-8 text-center">
-    <h1 className="text-2xl font-bold text-green-600">Welcome to Dashboard!</h1>
-    <p>Login Successful.</p>
-  </div>
-);
+import MainLayout from './components/layout/MainLayout';
+import PositionsPage from './pages/PositionsPage';
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        {/* Public Route */}
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/dashboard" element={<Dashboard />} />
+        
+        {/* Protected Area */}
+        <Route element={<MainLayout />}>
+          {/* Default path redirects to positions */}
+          <Route path="/" element={<Navigate to="/positions" replace />} />
+          <Route path="/positions" element={<PositionsPage />} />
+        </Route>
+
+        {/* Catch-all */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
   );
