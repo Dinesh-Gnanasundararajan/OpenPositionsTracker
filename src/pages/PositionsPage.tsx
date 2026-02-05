@@ -16,10 +16,14 @@ const PositionsPage = () => {
   // 1. Get the search query from the Layout
   // const { searchQuery } = useOutletContext<{ searchQuery: string }>();
   const { searchQuery, isChatMode } = useOutletContext<{ searchQuery: string; isChatMode: boolean }>();
-
+ 
   const handleOpenAddClient = () => setIsClientModalOpen(true);
 
-  
+  const handleAddData = ({ clients, units }: { clients: string[]; units: string[] }) => {
+    console.log(units);
+  setClientOptions((prev) => Array.from(new Set([...prev, ...clients])).sort((a, b) => a.localeCompare(b)));
+  //setUnitOptions((prev) => Array.from(new Set([...prev, ...units])));
+};
   const handleClientAdded = (newClientName: string) => {
     setClientOptions(prevOptions => {
       const cleanList = prevOptions.filter(opt => opt !== '➕ Add New Client');
@@ -70,6 +74,7 @@ const PositionsPage = () => {
         isOpen={isClientModalOpen} 
         onClose={() => setIsClientModalOpen(false)}
         onClientAdded={handleClientAdded}
+        onDataUpload={handleAddData} 
       />
     </div>
   );

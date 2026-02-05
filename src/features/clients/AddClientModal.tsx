@@ -1,18 +1,55 @@
 import { useState } from 'react';
-import { X, Save, Loader2 } from 'lucide-react';
-
+import { X, Save, Loader2, Upload } from 'lucide-react';
+import * as XLSX from 'xlsx';
 interface AddClientModalProps {
   isOpen: boolean;
   onClose: () => void;
   onClientAdded?: (newClientName: string) => void;
+  onDataUpload: (data: { clients: string[]; units: string[] }) => void;
 }
 
-export const AddClientModal = ({ isOpen, onClose, onClientAdded }: AddClientModalProps) => {
+export const AddClientModal = ({ isOpen, onClose, onClientAdded,onDataUpload }: AddClientModalProps) => {
   const [clientName, setClientName] = useState('');
   const [location, setLocation] = useState('US');
   const [isSubmitting, setIsSubmitting] = useState(false);
-
+ 
   if (!isOpen) return null;
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const bstr = event.target?.result;
+      const workbook = XLSX.read(bstr, { type: 'binary' });
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      
+      const rawData: any[] = XLSX.utils.sheet_to_json(sheet);
+
+      // Create two separate sets for distinct values
+      const distinctClients = new Set<string>();
+      const distinctUnits = new Set<string>();
+
+      rawData.forEach((row) => {
+        const client = row["Client Name"];
+        const unit = row["Delivery Unit"];
+
+        if (client) distinctClients.add(String(client).trim());
+        if (unit) distinctUnits.add(String(unit).trim());
+      });
+
+      // Pass the object containing both arrays back to the parent
+      onDataUpload({
+        clients: Array.from(distinctClients),
+        units: Array.from(distinctUnits),
+      });
+      
+      onClose();
+    };
+    reader.readAsBinaryString(file);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,9 +102,21 @@ export const AddClientModal = ({ isOpen, onClose, onClientAdded }: AddClientModa
           </div>
           <div className="flex justify-end gap-3 pt-4 border-t border-gray-50 mt-4">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
-            <button type="submit" disabled={isSubmitting} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50">
-              {isSubmitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</> : <><Save className="w-4 h-4" /> Save Client</>}
-            </button>
+            
+            <label className="cursor-pointer flex items-center gap-2  bg-red-600 hover:bg-red-700 text-white font-medium py-2.5 px-6 rounded-lg transition-colors">
+          <Upload className="w-4 h-4" /> {/* Requested Icon */}
+          <span>Upload File</span>
+          <input 
+            type="file" 
+            accept=".xlsx, .xls" 
+            onChange={handleFileChange}
+            className="hidden" // Hide original input
+          />
+        </label>
+           
+           <button type="submit" disabled={isSubmitting} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50">
+                  {isSubmitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</> : <><Save className="w-4 h-4" /> Save Client</>}
+                </button>
           </div>
         </form>
       </div>

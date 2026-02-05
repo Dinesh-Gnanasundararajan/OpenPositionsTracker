@@ -31,12 +31,14 @@ const PositionsGrid = ({ onAddClient, clientOptions, searchQuery }: PositionsGri
         filter: true,
         resizable: true,
       };
-
+      
       // SPECIAL HANDLING FOR CLIENT COLUMN
       if (config.field === 'client') {
         col.cellEditor = 'agSelectCellEditor';
         // Use the prop instead of the hardcoded mock data
-        col.cellEditorParams = { values: clientOptions };
+        col.cellEditorParams = { values: clientOptions,valueListMaxHeight: 300, // Height in pixels
+      //valueListMaxWidth: 100,  
+      };
       } 
       // Handle other dropdowns
       else if (config.type === 'dropdown') {
@@ -49,7 +51,7 @@ const PositionsGrid = ({ onAddClient, clientOptions, searchQuery }: PositionsGri
       if (config.cellClass) col.cellClass = config.cellClass;
       
       return col;
-    });
+    }); 
 
     setColumnDefs(dynamicColumns);
     
