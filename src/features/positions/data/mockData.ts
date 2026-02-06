@@ -16,7 +16,7 @@ export const MOCK_COLUMN_CONFIG = [
       'Pipeline - New Work', 'Pipeline - Extensions', 
       'Prospective Demand'
   ]},
-  { field: 'client', headerName: 'Client', width: 150, type: 'text', options: ['Citibank', 'Wells Fargo', 'Chase', 'Acme Corp', 'Google', 'Amazon', 'Facebook', 'Netflix'] },
+  { field: 'client', headerName: 'Client', width: 150, type: 'text', options: ['Citibank', 'Wells Fargo', 'Chase', 'Acme Corp', 'Google', 'Amazon', 'Facebook', 'Netflix', '➕ Add New Client'] },
   { field: 'opportunity', headerName: 'Opportunity/Project', width: 200, type: 'text' },
   { field: 'probability', headerName: 'Probability - %', width: 130, type: 'number' },
   { field: 'estStartDate', headerName: 'Estimated Start Date', width: 160, type: 'date' },
