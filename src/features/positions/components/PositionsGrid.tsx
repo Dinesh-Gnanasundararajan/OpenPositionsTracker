@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect, useCallback } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { ModuleRegistry, AllCommunityModule, type ColDef, type GridApi, type GetRowIdParams } from 'ag-grid-community';
-import { MOCK_COLUMN_CONFIG } from '../data/mockData';
+import { MOCK_COLUMN_CONFIG, CLIENT_DU_MAPPING } from '../data/mockData'; // 👈 IMPORT MAPPING
 import { Columns } from 'lucide-react';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -20,9 +20,6 @@ const PositionsGrid = ({ rowData, onDataChange, clientOptions, searchQuery, onAd
   const [showColMenu, setShowColMenu] = useState(false);
   const [colVisibility, setColVisibility] = useState<Record<string, boolean>>({});
 
-  // ⚡ FLICKER FIX 1: Stable ID Callback
-  // This tells AG Grid to track rows by ID, so it only updates changed cells
-  // instead of destroying/recreating the whole row.
   const getRowId = useCallback((params: GetRowIdParams) => {
     return String(params.data.id);
   }, []);
@@ -33,14 +30,13 @@ const PositionsGrid = ({ rowData, onDataChange, clientOptions, searchQuery, onAd
         field: config.field,
         headerName: config.headerName,
         width: config.width,
-        editable: true,
+        editable: config.editable !== false, // 👈 RESPECT EDITABLE FLAG
         sortable: true,
         filter: true,
         resizable: true,
         hide: false,
-        // 👇 TOOLTIP FIX: Show header text on hover
         headerTooltip: config.headerName, 
-        tooltipField: config.field, // Optional: Show cell text on hover too
+        tooltipField: config.field,
       };
 
       if (config.field === 'client') {
@@ -64,7 +60,7 @@ const PositionsGrid = ({ rowData, onDataChange, clientOptions, searchQuery, onAd
   const defaultColDef = useMemo(() => ({
     minWidth: 100,
     filter: true,
-    enableCellChangeFlash: true, // Optional: Nice visual cue on change
+    enableCellChangeFlash: true,
   }), []);
 
   const onGridReady = (params: any) => {
@@ -72,14 +68,24 @@ const PositionsGrid = ({ rowData, onDataChange, clientOptions, searchQuery, onAd
   };
 
   const onCellValueChanged = (params: any) => {
-    if (params.colDef.field === 'client' && params.newValue === '➕ Add New Client') {
-       params.node.setDataValue('client', params.oldValue);
-       onAddClient();
-       return;
+    if (params.colDef.field === 'client') {
+        // 1. Handle "Add New Client"
+        if (params.newValue === '➕ Add New Client') {
+            params.node.setDataValue('client', params.oldValue);
+            onAddClient();
+            return;
+        }
+
+        // 2. AUTO-POPULATE DELIVERY UNIT
+        const newClient = params.newValue;
+        const mappedDU = CLIENT_DU_MAPPING[newClient];
+        
+        if (mappedDU) {
+            // Update the Delivery Unit cell automatically
+            params.node.setDataValue('deliveryUnit', mappedDU);
+        }
     }
     
-    // We update parent, but because we use 'getRowId', 
-    // the grid won't flash or scroll to top when the new data comes back down.
     const allRowData: any[] = [];
     params.api.forEachNode((node: any) => allRowData.push(node.data));
     onDataChange(allRowData);
@@ -132,8 +138,8 @@ const PositionsGrid = ({ rowData, onDataChange, clientOptions, searchQuery, onAd
           onCellValueChanged={onCellValueChanged}
           onGridReady={onGridReady}
           quickFilterText={searchQuery}
-          getRowId={getRowId} // 👈 FLICKER FIX APPLIED HERE
-          tooltipShowDelay={0} // Show tooltips instantly
+          getRowId={getRowId}
+          tooltipShowDelay={0}
         />
       </div>
     </div>
