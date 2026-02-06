@@ -11,39 +11,46 @@ const PORT = 3000;
 app.use(cors());
 app.use(express.json());
 
-// 1. Setup Model (Temperature 0 is crucial)
 const model = new ChatOllama({
   baseUrl: "http://127.0.0.1:11434",
   model: "llama3.2",
   temperature: 0,
-  format: "json", // 👈 FORCE JSON OUTPUT
+  format: "json", 
 });
 
 app.post('/api/chat', async (req, res) => {
   const { message } = req.body;
-  console.log("User Question:", message);
+  console.log("------------------------------------------------");
+  console.log("1. User Question:", message);
 
   try {
     // ---------------------------------------------------------
-    // STEP 1: ASK AI TO EXTRACT FILTERS (NOT SEARCH DATA)
+    // STEP 1: SMARTER EXTRACTION PROMPT
     // ---------------------------------------------------------
     const parserPrompt = ChatPromptTemplate.fromMessages([
-      ["system", `You are a Search Query Extractor.
+      ["system", `You are a Keyword Extractor.
       
-      Your goal is to extract search keywords from the user's question.
+      GOAL: Extract clean keywords for database filtering.
       
-      OUTPUT FORMAT (JSON ONLY):
+      RULES:
+      1. IGNORE filler words like: "show me", "list", "get", "jobs", "roles", "positions", "openings", "available".
+      2. Extract ONLY the specific entity names (e.g., "Google", "Java", "Senior").
+      3. Return NULL if a category is not mentioned.
+      
+      OUTPUT JSON FORMAT:
       {{
         "client": "string or null",
         "role": "string or null",
         "status": "string or null",
-        "priority": "string or null"
+        "priority": "string or null",
+        "location": "string or null",
+        "deliveryUnit": "string or null"
       }}
       
       EXAMPLES:
-      - "Show me Google roles" -> {{ "client": "Google", "role": null, "status": null, "priority": null }}
-      - "Urgent Java jobs" -> {{ "client": null, "role": "Java", "status": null, "priority": "Urgent" }}
-      - "What's up?" -> {{ "client": null, "role": null, "status": null, "priority": null }}
+      - "Show me Google positions" -> {{ "client": "Google", ...nulls }} (Removed 'positions')
+      - "Java developer roles in India" -> {{ "role": "Java", "location": "India", ...nulls }}
+      - "TMT open jobs" -> {{ "deliveryUnit": "TMT", ...nulls }}
       `],
       ["human", "{question}"],
     ]);
@@ -52,30 +59,41 @@ app.post('/api/chat', async (req, res) => {
     
     // Get the JSON filter from AI
     const filterJsonStr = await chain.invoke({ question: message });
-    const filters = JSON.parse(filterJsonStr);
+    let filters = {};
     
-    console.log("🔍 AI Extracted Filters:", filters);
+    try {
+        filters = JSON.parse(filterJsonStr);
+    } catch (e) {
+        console.error("JSON Parse failed, attempting fallback");
+    }
+    
+    console.log("2. AI Cleaned Filters:", filters);
 
     // ---------------------------------------------------------
-    // STEP 2: JAVASCRIPT PERFORMS THE SEARCH (100% ACCURATE)
+    // STEP 2: SEARCH LOGIC (Added DeliveryUnit & Location)
     // ---------------------------------------------------------
     let results = POSITIONS_DATA.filter(item => {
       let match = true;
       
-      // Fuzzy match client (e.g. "Google" matches "Google, Inc.")
-      if (filters.client && !item.client.toLowerCase().includes(filters.client.toLowerCase())) match = false;
-      
-      // Fuzzy match role
-      if (filters.role && !item.role.toLowerCase().includes(filters.role.toLowerCase())) match = false;
-      
-      // Fuzzy match status
-      if (filters.status && !item.status.toLowerCase().includes(filters.status.toLowerCase())) match = false;
+      // Helper to safely check text
+      const check = (dataField, filterVal) => {
+          if (!filterVal) return true; // No filter = pass
+          if (!dataField) return false; // Data missing = fail
+          return dataField.toLowerCase().includes(filterVal.toLowerCase());
+      };
 
-      // Fuzzy match priority
-      if (filters.priority && !item.priority.toLowerCase().includes(filters.priority.toLowerCase())) match = false;
-      
+      // Apply Filters
+      if (!check(item.client, filters.client)) match = false;
+      if (!check(item.role, filters.role)) match = false;
+      if (!check(item.status, filters.status)) match = false;
+      if (!check(item.priority, filters.priority)) match = false;
+      if (!check(item.location, filters.location)) match = false;
+      if (!check(item.deliveryUnit, filters.deliveryUnit)) match = false;
+
       return match;
     });
+
+    console.log(`3. Found ${results.length} matches`);
 
     // ---------------------------------------------------------
     // STEP 3: FORMAT THE RESPONSE
@@ -85,19 +103,15 @@ app.post('/api/chat', async (req, res) => {
     if (results.length === 0) {
       responseText = "No records found matching your criteria.";
     } else {
-      // Create a super concise list
       const list = results.map(r => `• ${r.role} @ ${r.client} (${r.status})`).join("\n");
-      
-      // Add a header
       responseText = `Found ${results.length} matches:\n\n${list}`;
       
-      // Hard limit to 50 words approx (or just truncate list)
+      // Strict Word Limit Logic
       if (results.length > 10) {
          responseText += `\n\n...and ${results.length - 10} more.`;
       }
     }
 
-    // Send simple text back to frontend
     res.setHeader('Content-Type', 'text/plain');
     res.write(responseText);
     res.end();
@@ -109,5 +123,5 @@ app.post('/api/chat', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Smart Agent (Router Mode) running on http://localhost:${PORT}`);
+  console.log(`🚀 Smart Agent running on http://localhost:${PORT}`);
 });

@@ -64,7 +64,6 @@ const Header = ({ searchQuery, onSearchChange, isChatMode, onToggleChat }: Heade
                     Admin
                 </span>
             </div>
-            <p className="text-xs text-gray-500">Perficient Talent Acquisition</p>
           </div>
           
           {/* User Avatar */}
